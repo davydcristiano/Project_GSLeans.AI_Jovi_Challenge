@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <title>GSLens.AI</title>
+    <!-- Required meta tags -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0b0d12">
+    <meta name="description" content="GSLens.AI — Câmera web com Filtros Inteligentes, Realidade Aumentada, Recorte Avançado, Fundo Branco e Geração de PDF.">
+
+  <title>GSLens.AI</title>
+
+  <!-- Fontes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Chart.js para dashboard -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <!-- Style -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="theme-dark">
+
+  <!-- HOME / SPLASH -->
+  <br>
+  <div id="homeScreen">
+    <div class="home-noise"></div>
+    <div class="home-glow"></div>
+
+    <div class="home-icon-wrap">
+      <div class="icon-ring r1"></div>
+      <div class="icon-ring r2"></div>
+      <div class="icon-ring r3"></div>
+      <div class="home-icon">
+        <svg width="52" height="44" viewBox="0 0 52 44" fill="none">
+          <path d="M6 14h4l3-5h26l3 5h4a3 3 0 0 1 3 3v20a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V17a3 3 0 0 1 3-3Z" stroke="white"
+            stroke-width="2.2" fill="none" />
+          <circle cx="26" cy="25" r="8" stroke="white" stroke-width="2.2" />
+          <circle cx="26" cy="25" r="3.5" fill="rgba(255,255,255,0.25)" />
+          <circle cx="40" cy="19" r="2" fill="#00e5ff" />
+        </svg>
+        <div class="icon-spark sp1"></div>
+        <div class="icon-spark sp2"></div>
+        <div class="icon-spark sp3"></div>
+      </div>
+    </div>
+
+    <div class="home-text">
+      <h1>GS<span>Lens</span>.AI</h1>
+      <p>Câmera profissional com IA, AR, filtros Avançado e muito mais.</p>
+    </div>
+
+    <button class="home-btn" onclick="initCamera()">Abrir Câmera</button>
+
+    <div class="home-pills">
+      <span class="badge badge-pill feature-pill">🎨 Filtros Inteligentes</span>
+      <span class="badge badge-pill feature-pill">🔮 Realidade Aumentada</span>
+      <span class="badge badge-pill feature-pill">✂️ Recorte Avançado</span>
+      <span class="badge badge-pill feature-pill">⬜ Fundo Branco</span>
+      <span class="badge badge-pill feature-pill">📄 Gerar PDF</span>
+    </div>
+
+    <!-- Botões extras da home -->
+    <div class="home-extras">
+      <button class="home-extra-btn" onclick="openGalleryDirect()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="3" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
+        </svg>
+        Galeria
+      </button>
+    </div>
+  </div>
+
+
+  <!-- CÂMERA PRINCIPAL -->
+  <div id="cameraScreen" class="screen-hidden">
+
+    <!-- Barra superior -->
+    <div class="top-bar">
+      <button class="topbtn" onclick="goHome()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <div class="logo-sm">GS<span>Lens</span><em>AI</em></div>
+      <div class="topbtn-group">
+        <button class="topbtn" id="flashBtn" onclick="toggleFlash()">
+          <svg id="flashSvg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2" />
+          </svg>
+        </button>
+        <button class="topbtn af-toggle" id="afBtn" onclick="toggleAF()">AF</button>
+        <button class="topbtn" id="gridBtn" onclick="toggleGrid()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+          </svg>
+        </button>
+        <button class="topbtn" onclick="toggleTheme()">
+          <svg id="themeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+          </svg>
+        </button>
+      </div>
+      <div class="status-dot" id="statusDot"></div>
+    </div>
+
+    <!-- VISOR -->
+    <div class="viewfinder" id="viewfinder">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="arCanvas"></canvas>
+
+      <!-- Cantos dourados -->
+      <div class="vc tl"></div>
+      <div class="vc tr"></div>
+      <div class="vc bl"></div>
+      <div class="vc br"></div>
+
+      <!-- Grade thirds -->
+      <div class="grid-overlay hidden" id="gridOverlay">
+        <div class="gl gv1"></div>
+        <div class="gl gv2"></div>
+        <div class="gl gh1"></div>
+        <div class="gl gh2"></div>
+      </div>
+
+      <!-- Focus ring -->
+      <div id="focusRing"></div>
+
+      <!-- Temporizador countdown -->
+      <div class="timer-overlay hidden" id="timerOverlay">
+        <div class="timer-number" id="timerNumber">3</div>
+      </div>
+
+      <!-- Badges -->
+      <div class="mode-badge" id="modeBadge">FOTO</div>
+      <div class="ar-badge hidden" id="arBadge"><span class="ar-pulse"></span>AR</div>
+      <div class="af-badge hidden" id="afBadge">AF ●</div>
+      <div class="rec-badge hidden" id="recBadge"><span class="rec-dot"></span>REC</div>
+
+      <!-- Zoom pill -->
+      <div class="zoom-pill" id="zoomPill">1×</div>
+
+      <!-- Exposição badge -->
+      <div class="ev-badge hidden" id="evBadge">EV 0</div>
+
+      <!-- Flash -->
+      <div id="flashOverlay"></div>
+
+      <!-- Pinch zoom hint -->
+      <div class="pinch-hint hidden" id="pinchHint">👌 Pinça para zoom</div>
+    </div>
+
+    <!-- Controle de Exposição -->
+    <div class="ev-strip hidden" id="evStrip">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5" />
+        <line x1="12" y1="1" x2="12" y2="3" />
+        <line x1="12" y1="21" x2="12" y2="23" />
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      </svg>
+      <input type="range" id="evSlider" min="-2" max="2" step="0.1" value="0" oninput="setExposure(this.value)">
+      <span class="zl" id="evVal">0</span>
+    </div>
+
+    <!-- Zoom slider -->
+    <div class="zoom-strip">
+      <span class="zl">1×</span>
+      <input type="range" id="zoomSlider" min="1" max="5" step="0.1" value="1" oninput="setZoom(this.value)">
+      <span class="zl">5×</span>
+    </div>
+
+    <!-- FILTROS estilo iPhone -->
+    <div class="filters-strip">
+      <div class="filters-inner" id="filtersInner">
+        <div class="fi active" data-f="none" onclick="setFilter('none',this)">
+          <div class="ft fn"></div><span>Normal</span>
+        </div>
+        <div class="fi" data-f="vivid" onclick="setFilter('vivid',this)">
+          <div class="ft fv"></div><span>Vívido</span>
+        </div>
+        <div class="fi" data-f="dramatic" onclick="setFilter('dramatic',this)">
+          <div class="ft fd"></div><span>Dramático</span>
+        </div>
+        <div class="fi" data-f="noir" onclick="setFilter('noir',this)">
+          <div class="ft fno"></div><span>Noir</span>
+        </div>
+        <div class="fi" data-f="silvertone" onclick="setFilter('silvertone',this)">
+          <div class="ft fs"></div><span>Prata</span>
+        </div>
+        <div class="fi" data-f="fade" onclick="setFilter('fade',this)">
+          <div class="ft ff"></div><span>Fade</span>
+        </div>
+        <div class="fi" data-f="chrome" onclick="setFilter('chrome',this)">
+          <div class="ft fc"></div><span>Chrome</span>
+        </div>
+        <div class="fi" data-f="warm" onclick="setFilter('warm',this)">
+          <div class="ft fw"></div><span>Quente</span>
+        </div>
+        <div class="fi" data-f="cool" onclick="setFilter('cool',this)">
+          <div class="ft fco"></div><span>Frio</span>
+        </div>
+        <div class="fi" data-f="process" onclick="setFilter('process',this)">
+          <div class="ft fp"></div><span>Process</span>
+        </div>
+        <div class="fi" data-f="tonal" onclick="setFilter('tonal',this)">
+          <div class="ft ftl"></div><span>Tonal</span>
+        </div>
+        <div class="fi" data-f="transfer" onclick="setFilter('transfer',this)">
+          <div class="ft ftr"></div><span>Transfer</span>
+        </div>
+        <div class="fi" data-f="sepia" onclick="setFilter('sepia',this)">
+          <div class="ft fse"></div><span>Sépia</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODOS -->
+    <div class="mode-row">
+      <button class="mode-btn" id="modeNoite" onclick="setMode('noite')">Noite</button>
+      <button class="mode-btn" id="modeRetrato" onclick="setMode('retrato')">Retrato</button>
+      <button class="mode-btn active" id="modeFoto" onclick="setMode('foto')">Foto</button>
+      <button class="mode-btn" id="modeVideo" onclick="setMode('video')">Vídeo</button>
+      <button class="mode-btn" id="modeSlowMo" onclick="setMode('slowmo')">Slow-Mo</button>
+      <button class="mode-btn" id="modeAR" onclick="setMode('ar')">AR</button>
+    </div>
+
+    <!-- CONTROLES INFERIORES -->
+    <div class="cam-bottom">
+      <!-- Thumb galeria -->
+      <button class="thumb-btn" onclick="goGallery()" id="thumbBtn">
+        <div class="thumb-placeholder" id="thumbPlaceholder">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="3" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+        </div>
+        <img id="lastThumb" class="hidden" alt="">
+        <div class="count-badge hidden" id="countBadge">0</div>
+      </button>
+
+      <!-- Disparador -->
+      <div class="shutter-wrap">
+        <!-- Temporizador selector -->
+        <div class="timer-btns">
+          <button class="timer-sel" id="ts0" onclick="setTimerDelay(0)" title="Sem temporizador">OFF</button>
+          <button class="timer-sel" id="ts3" onclick="setTimerDelay(3)">3s</button>
+          <button class="timer-sel" id="ts5" onclick="setTimerDelay(5)">5s</button>
+          <button class="timer-sel" id="ts10" onclick="setTimerDelay(10)">10s</button>
+        </div>
+        <button class="shutter" id="shutterBtn" onclick="triggerCapture()">
+          <div class="shutter-outer">
+            <div class="shutter-ring"></div>
+            <div class="shutter-inner" id="shutterInner"></div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Flip -->
+      <button class="flip-btn" onclick="flipCamera()">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 4v6h6M23 20v-6h-6" />
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Controles extras (EV, compartilhar) -->
+    <div class="extra-controls">
+      <button class="extra-btn" onclick="toggleEvStrip()">☀️ EV</button>
+      <button class="extra-btn" onclick="shareLastPhoto()">📤 Compartilhar</button>
+      <button class="extra-btn" onclick="openDashboard()">📊 Stats</button>
+      <button class="extra-btn" id="installBtn2" style="display:none" onclick="installPWA()">📲 Instalar</button>
+    </div>
+
+    <!-- PAINEL AR -->
+    <div class="ar-panel hidden" id="arPanel">
+      <div class="ar-scroll">
+        <button class="ar-opt active" data-ar="grid" onclick="setAR('grid',this)">📐 Grade</button>
+        <button class="ar-opt" data-ar="particles" onclick="setAR('particles',this)">✨ Partículas</button>
+        <button class="ar-opt" data-ar="neon" onclick="setAR('neon',this)">💡 Neon</button>
+        <button class="ar-opt" data-ar="bokeh" onclick="setAR('bokeh',this)">🫧 Bokeh</button>
+        <button class="ar-opt" data-ar="matrix" onclick="setAR('matrix',this)">🟩 Matrix</button>
+        <button class="ar-opt" data-ar="hearts" onclick="setAR('hearts',this)">❤️ Corações</button>
+        <button class="ar-opt" data-ar="stars" onclick="setAR('stars',this)">⭐ Estrelas</button>
+        <button class="ar-opt" data-ar="rain" onclick="setAR('rain',this)">🌧️ Chuva</button>
+        <button class="ar-opt" data-ar="confetti" onclick="setAR('confetti',this)">🎉 Confetti</button>
+      </div>
+    </div>
+
+  </div>
+  
+  <!-- /cameraScreen -->
+
+
+  <!-- GALERIA -->
+  <div id="galleryScreen" class="screen-hidden">
+    <div class="gal-header">
+      <button class="back-btn" id="galBackBtn" onclick="galBack()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <h2>Galeria</h2>
+      <div class="gal-header-actions">
+        <button class="gal-action-btn" id="selectModeBtn" onclick="toggleSelectMode()">Selecionar</button>
+        <span id="galCount" class="gal-count">0 fotos</span>
+      </div>
+    </div>
+
+    <!-- Álbuns -->
+    <div class="albums-strip" id="albumsStrip">
+      <button class="album-chip active" onclick="filterAlbum('all',this)">Todas</button>
+      <button class="album-chip" onclick="filterAlbum('foto',this)">📷 Foto</button>
+      <button class="album-chip" onclick="filterAlbum('video',this)">🎬 Vídeo</button>
+      <button class="album-chip" onclick="filterAlbum('noite',this)">🌙 Noite</button>
+      <button class="album-chip" onclick="filterAlbum('ar',this)">🔮 AR</button>
+      <button class="album-chip" onclick="filterAlbum('retrato',this)">🤳 Retrato</button>
+    </div>
+
+    <!-- Barra de seleção em lote -->
+    <div class="batch-bar hidden" id="batchBar">
+      <span id="selectedCount">0 selecionadas</span>
+      <div class="batch-actions">
+        <button onclick="batchPDF()">📄 PDF</button>
+        <button onclick="batchDelete()">🗑️ Excluir</button>
+        <button onclick="cancelSelectMode()">✕ Cancelar</button>
+      </div>
+    </div>
+
+    <div class="gal-grid" id="galGrid">
+      <div class="gal-empty" id="galEmpty">
+        <span>📷</span>
+        <p>Nenhuma foto ainda.<br>Volte e tire fotos!</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════
+     DASHBOARD / ESTATÍSTICAS
+═══════════════════════════════════════ -->
+  <div id="dashboardScreen" class="screen-hidden">
+    <div class="gal-header">
+      <button class="back-btn" onclick="closeDashboard()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <h2>Estatísticas</h2>
+      <span></span>
+    </div>
+    <div class="dashboard-body" id="dashboardBody">
+      <!-- injetado via JS -->
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════
+     MODAL EDIÇÃO
+═══════════════════════════════════════ -->
+  <div id="editModal" class="modal-overlay hidden">
+    <div class="modal-backdrop" onclick="closeModal()"></div>
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+
+      <!-- Preview -->
+      <div class="modal-preview" id="modalPreview">
+        <img id="modalImg" alt="">
+        <video id="modalVideo" class="hidden" controls></video>
+        <div class="modal-meta" id="modalMeta"></div>
+        <!-- Overlay de recorte -->
+        <div id="cropOverlay" class="crop-overlay hidden">
+          <div id="cropBox" class="crop-box"></div>
+          <p class="crop-tip-overlay">Arraste para recortar</p>
+        </div>
+        <!-- Canvas de texto/desenho -->
+        <canvas id="drawCanvas" class="draw-canvas hidden"></canvas>
+      </div>
+
+      <!-- Abas -->
+      <div class="edit-tabs">
+        <button class="etab active" onclick="openTab('adjust',this)">Ajustes</button>
+        <button class="etab" onclick="openTab('effects',this)">Efeitos</button>
+        <button class="etab" onclick="openTab('crop',this)">Recortar</button>
+        <button class="etab" onclick="openTab('draw',this)">Desenho</button>
+        <button class="etab" onclick="openTab('text',this)">Texto</button>
+        <button class="etab" onclick="openTab('frame',this)">Moldura</button>
+        <button class="etab" onclick="openTab('ai',this)">🤖 IA</button>
+        <button class="etab" onclick="openTab('export',this)">Exportar</button>
+      </div>
+
+      <!-- AJUSTES -->
+      <div class="epanel" id="panelAdjust">
+        <div class="adj-row"><label>Brilho</label><input type="range" min="-100" max="100" value="0" id="slBrightness"
+            oninput="liveAdjust()"><span id="vBrightness">0</span></div>
+        <div class="adj-row"><label>Contraste</label><input type="range" min="-100" max="100" value="0" id="slContrast"
+            oninput="liveAdjust()"><span id="vContrast">0</span></div>
+        <div class="adj-row"><label>Saturação</label><input type="range" min="-100" max="100" value="0"
+            id="slSaturation" oninput="liveAdjust()"><span id="vSaturation">0</span></div>
+        <div class="adj-row"><label>Nitidez</label><input type="range" min="0" max="100" value="0" id="slSharpness"
+            oninput="liveAdjust()"><span id="vSharpness">0</span></div>
+        <div class="adj-row"><label>Desfoque</label><input type="range" min="0" max="20" value="0" id="slBlur"
+            oninput="liveAdjust()"><span id="vBlur">0</span></div>
+        <div class="adj-row"><label>Vinheta</label><input type="range" min="0" max="100" value="0" id="slVignette"
+            oninput="liveAdjust()"><span id="vVignette">0</span></div>
+        <button class="btn-reset" onclick="resetAdjust()">↺ Redefinir</button>
+      </div>
+
+      <!-- EFEITOS -->
+      <div class="epanel hidden" id="panelEffects">
+        <div class="fx-grid">
+          <button class="fxchip active" data-e="none" onclick="applyEffect('none',this)">Original</button>
+          <button class="fxchip" data-e="vivid" onclick="applyEffect('vivid',this)">Vívido</button>
+          <button class="fxchip" data-e="dramatic" onclick="applyEffect('dramatic',this)">Dramático</button>
+          <button class="fxchip" data-e="noir" onclick="applyEffect('noir',this)">Noir</button>
+          <button class="fxchip" data-e="silvertone" onclick="applyEffect('silvertone',this)">Prata</button>
+          <button class="fxchip" data-e="fade" onclick="applyEffect('fade',this)">Fade</button>
+          <button class="fxchip" data-e="chrome" onclick="applyEffect('chrome',this)">Chrome</button>
+          <button class="fxchip" data-e="warm" onclick="applyEffect('warm',this)">Quente</button>
+          <button class="fxchip" data-e="cool" onclick="applyEffect('cool',this)">Frio</button>
+          <button class="fxchip" data-e="sepia" onclick="applyEffect('sepia',this)">Sépia</button>
+          <button class="fxchip" data-e="bokeh" onclick="applyEffect('bokeh',this)">🌫️ Desfoque</button>
+          <button class="fxchip whitebg" data-e="whitebg" onclick="applyEffect('whitebg',this)">⬜ Fundo Branco</button>
+        </div>
+      </div>
+
+      <!-- RECORTAR -->
+      <div class="epanel hidden" id="panelCrop">
+        <p class="crop-help">Arraste na imagem acima para selecionar a área.</p>
+        <div class="ratio-row">
+          <button class="ratio-btn" onclick="setCropRatio(0,0)">Livre</button>
+          <button class="ratio-btn" onclick="setCropRatio(1,1)">1:1</button>
+          <button class="ratio-btn" onclick="setCropRatio(4,3)">4:3</button>
+          <button class="ratio-btn" onclick="setCropRatio(16,9)">16:9</button>
+          <button class="ratio-btn" onclick="setCropRatio(3,4)">3:4</button>
+        </div>
+        <div class="crop-actions">
+          <button class="btn-crop-apply" onclick="applyCrop()">✓ Aplicar</button>
+          <button class="btn-crop-reset" onclick="resetCrop()">↺ Resetar</button>
+        </div>
+      </div>
+
+      <!-- DESENHO -->
+      <div class="epanel hidden" id="panelDraw">
+        <div class="draw-controls">
+          <label>Cor: <input type="color" id="brushColor" value="#ff4af5"></label>
+          <label>Espessura:
+            <input type="range" min="2" max="40" value="8" id="brushSize">
+          </label>
+          <div class="draw-tool-row">
+            <button class="draw-tool active" id="toolBrush" onclick="setDrawTool('brush',this)">✏️ Pincel</button>
+            <button class="draw-tool" id="toolEraser" onclick="setDrawTool('eraser',this)">🧹 Borracha</button>
+          </div>
+          <div class="draw-btns">
+            <button class="btn-crop-apply" onclick="applyDraw()">✓ Aplicar</button>
+            <button class="btn-crop-reset" onclick="clearDraw()">↺ Limpar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEXTO -->
+      <div class="epanel hidden" id="panelText">
+        <div class="text-controls">
+          <input type="text" id="textInput" placeholder="Digite o texto..." class="text-field">
+          <div class="text-opts">
+            <label>Cor: <input type="color" id="textColor" value="#ffffff"></label>
+            <label>Tamanho:
+              <select id="textSize">
+                <option value="24">Pequeno</option>
+                <option value="36" selected>Médio</option>
+                <option value="52">Grande</option>
+                <option value="72">Enorme</option>
+              </select>
+            </label>
+            <label>Fonte:
+              <select id="textFont">
+                <option value="Syne">Syne</option>
+                <option value="Space Mono">Space Mono</option>
+                <option value="Arial">Arial</option>
+                <option value="serif">Serif</option>
+              </select>
+            </label>
+          </div>
+          <p class="crop-help">Toque na imagem para posicionar o texto.</p>
+          <div class="draw-btns">
+            <button class="btn-crop-apply" onclick="applyText()">✓ Aplicar Texto</button>
+            <button class="btn-crop-reset" onclick="clearText()">↺ Limpar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MOLDURA -->
+      <div class="epanel hidden" id="panelFrame">
+        <div class="frame-grid">
+          <button class="frame-btn active" data-frame="none" onclick="applyFrame('none',this)">Sem moldura</button>
+          <button class="frame-btn" data-frame="white" onclick="applyFrame('white',this)">⬜ Branca</button>
+          <button class="frame-btn" data-frame="black" onclick="applyFrame('black',this)">⬛ Preta</button>
+          <button class="frame-btn" data-frame="gold" onclick="applyFrame('gold',this)">🟨 Dourada</button>
+          <button class="frame-btn" data-frame="polaroid" onclick="applyFrame('polaroid',this)">📸 Polaroid</button>
+          <button class="frame-btn" data-frame="rounded" onclick="applyFrame('rounded',this)">🔲 Arredondada</button>
+          <button class="frame-btn" data-frame="shadow" onclick="applyFrame('shadow',this)">🌑 Sombra</button>
+          <button class="frame-btn" data-frame="film" onclick="applyFrame('film',this)">🎞️ Filme</button>
+        </div>
+      </div>
+
+      <!-- IA -->
+      <div class="epanel hidden" id="panelAI">
+        <div class="ai-panel">
+          <div class="ai-header">
+            <div class="ai-icon">🤖</div>
+            <div>
+              <div class="ai-title">Melhoria com IA</div>
+              <div class="ai-sub">Análise automática e ajustes inteligentes</div>
+            </div>
+          </div>
+          <div class="ai-actions">
+            <button class="ai-btn" onclick="aiAutoEnhance()">✨ Auto Melhorar</button>
+            <button class="ai-btn" onclick="aiAutoCrop()">✂️ Enquadrar Melhor</button>
+            <button class="ai-btn" onclick="aiColorBalance()">🎨 Balancear Cores</button>
+            <button class="ai-btn" onclick="aiRemoveBg()">⬜ Remover Fundo</button>
+          </div>
+          <div class="ai-result hidden" id="aiResult">
+            <p id="aiResultText"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPORTAR -->
+      <div class="epanel hidden" id="panelExport">
+        <div class="export-grid">
+          <button class="export-card" onclick="exportPDF(false)">
+            <span class="ec-icon">📄</span><span class="ec-label">PDF</span><span class="ec-sub">Fundo branco A4</span>
+          </button>
+          <button class="export-card" onclick="exportPDF(true)">
+            <span class="ec-icon">⬜</span><span class="ec-label">PDF + Fundo Branco</span><span class="ec-sub">Aplica
+              antes</span>
+          </button>
+          <button class="export-card" onclick="downloadJPG()">
+            <span class="ec-icon">🖼️</span><span class="ec-label">Baixar JPG</span><span class="ec-sub">Alta
+              qualidade</span>
+          </button>
+          <button class="export-card" onclick="sharePhoto()">
+            <span class="ec-icon">📤</span><span class="ec-label">Compartilhar</span><span class="ec-sub">Web Share
+              API</span>
+          </button>
+          <button class="export-card danger" onclick="deletePhoto()">
+            <span class="ec-icon">🗑️</span><span class="ec-label">Excluir</span><span
+              class="ec-sub">Irreversível</span>
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /modal-sheet -->
+  </div><!-- /editModal -->
+
+
+  <!-- ═══════════════════════════════════════
+     MODAL COLAGEM / LOTE PDF
+═══════════════════════════════════════ -->
+  <div id="batchModal" class="modal-overlay hidden">
+    <div class="modal-backdrop" onclick="closeBatchModal()"></div>
+    <div class="modal-sheet" style="max-height:60vh">
+      <div class="modal-handle"></div>
+      <div style="padding:16px">
+        <h3 style="margin-bottom:12px;font-size:16px">Exportar PDF em Lote</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px" id="batchInfo">0 fotos selecionadas</p>
+        <div class="export-grid">
+          <button class="export-card" onclick="generateBatchPDF('onepage')">
+            <span class="ec-icon">📄</span><span class="ec-label">1 por página</span><span class="ec-sub">Cada foto em
+              uma página A4</span>
+          </button>
+          <button class="export-card" onclick="generateBatchPDF('grid')">
+            <span class="ec-icon">🗂️</span><span class="ec-label">Grade 2×2</span><span class="ec-sub">4 fotos por
+              página</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+  <!-- Canvas de processamento -->
+  <canvas id="processCanvas" style="display:none"></canvas>
+
+  <script src="js/script.js"></script>
+</body>
+
+</html>
