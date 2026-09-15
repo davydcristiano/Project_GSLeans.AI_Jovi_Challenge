@@ -1,4 +1,4 @@
-Web App GSLeans.AI
+Projeto GSLeans.AI - CHALLENGE JOVI
 ===
 
 Projeto do Challenge realizado em parceria com a JOVI durante a graduação na FIAP. Atuação em equipe no desenvolvimento de uma aplicação web multiplataforma com integração à câmera de dispositivos móveis.
@@ -9,7 +9,7 @@ Projeto do Challenge realizado em parceria com a JOVI durante a graduação na F
 - Title:  `GSLeans.AI`
 - Authors:  `Davyd Cristiano`, `Davi Sena`, `Christian Urbano`, `Thay`, `André`
 - Full-preprint:
-- <img src="assets/image-project.png" width="80%">
+- <img src="assets/image-project.png" width="100%">
 
 ## Linguagens
 <br>
