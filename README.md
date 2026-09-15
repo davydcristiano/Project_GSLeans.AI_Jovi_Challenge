@@ -7,7 +7,7 @@ Projeto do Challenge realizado em parceria com a JOVI durante a graduação na F
 <br>
 
 - Title:  `GSLeans.AI`
-- Authors:  `Davyd Cristiano`, `Davi Sena`, `Christian Urbano`, `Thay`, `André`
+- Authors:  `Davyd Cristiano`, `Davi Sena`, `Christian Urbano`, `Thay`, `André Bettencourt`
 - Full-preprint:
 - <img src="assets/image-project.png" width="100%">
 
@@ -23,5 +23,5 @@ Projeto do Challenge realizado em parceria com a JOVI durante a graduação na F
 ## Direitos Reservados
 ```
 Title: GSLeans.AI
-Authors: Davyd Cristiano, Davi Sena, Christian Urbano, Thay, André.
+Authors: Davyd Cristiano, Davi Sena, Christian Urbano, Thay, André Bettencourt.
 ```
