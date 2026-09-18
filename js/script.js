@@ -969,6 +969,7 @@ function generateBatchPDF(layout) {
 ══════════════════════════════════════ */
 function openEditModal(idx) {
   editingIdx=idx;
+  _fxToken++;            /* cancela qualquer efeito/moldura pendente da foto anterior */
   originalDataUrl=photos[idx].dataUrl;
   document.getElementById('editModal').classList.remove('hidden');
   const isVideo=photos[idx].type==='video';
@@ -1065,33 +1066,105 @@ function resetAdjust() {
 /* ══════════════════════════════════════
    19. EFEITOS PÓS / MOLDURAS
 ══════════════════════════════════════ */
-function applyEffect(fx,el) {
-  document.querySelectorAll('.fxchip').forEach(c=>c.classList.remove('active')); el.classList.add('active');
-  const p=photos[editingIdx]; if(!p||p.type==='video') return;
-  if(fx==='none'){p.dataUrl=originalDataUrl;document.getElementById('modalImg').src=p.dataUrl;return;}
-  const canvas=document.getElementById('processCanvas');
-  const tmpImg=new Image();
-  tmpImg.onload=()=>{
-    canvas.width=tmpImg.width; canvas.height=tmpImg.height;
-    const ctx=canvas.getContext('2d');
-    if(fx==='whitebg'){
-      /* CORREÇÃO: antes o código pintava branco e desenhava a foto POR CIMA.
-         Como JPEG é opaco, o branco ficava totalmente coberto — não fazia nada.
-         Agora o fundo claro é realmente convertido em branco puro (estilo
-         digitalização de documento), preservando o objeto/texto em primeiro plano. */
-      ctx.drawImage(tmpImg,0,0);
-      whitenBackground(ctx,canvas.width,canvas.height);
+
+/* Cache do bitmap de origem já decodificado.
+   CORREÇÃO: antes cada clique criava um new Image() e dependia do onload
+   disparar de novo. Quando o navegador servia o data-URL do cache, o onload
+   podia não disparar e NADA acontecia — era o motivo de não conseguir
+   trocar de efeito depois do primeiro. */
+let _fxCache = { url:null, img:null };
+/* Token para descartar resultados obsoletos (cliques rápidos seguidos). */
+let _fxToken = 0;
+
+function carregarOrigemEfeito(url){
+  return new Promise((resolve,reject)=>{
+    if(_fxCache.url===url && _fxCache.img && _fxCache.img.complete){
+      resolve(_fxCache.img); return;
     }
-    else ctx.drawImage(tmpImg,0,0);
-    if(fx==='bokeh'){ctx.filter='blur(8px)';const cv2=document.createElement('canvas');cv2.width=canvas.width;cv2.height=canvas.height;cv2.getContext('2d').drawImage(canvas,0,0);ctx.filter='none';ctx.drawImage(tmpImg,0,0);const gr=ctx.createRadialGradient(canvas.width/2,canvas.height/2,0,canvas.width/2,canvas.height/2,Math.max(canvas.width,canvas.height)*.4);gr.addColorStop(0,'transparent');gr.addColorStop(1,'rgba(0,0,0,.6)');ctx.drawImage(cv2,0,0);ctx.fillStyle=gr;ctx.fillRect(0,0,canvas.width,canvas.height);}
-    else if(fx!=='whitebg') applyFilter(ctx,canvas.width,canvas.height,fx,1);
+    const img=new Image();
+    img.onload =()=>{ _fxCache={url,img}; resolve(img); };
+    img.onerror=()=>reject(new Error('Falha ao carregar a imagem de origem'));
+    img.src=url;
+    /* Se já veio pronto do cache do navegador, resolve na hora. */
+    if(img.complete && img.naturalWidth){ _fxCache={url,img}; resolve(img); }
+  });
+}
+
+function applyEffect(fx,el) {
+  document.querySelectorAll('.fxchip').forEach(c=>c.classList.remove('active'));
+  if(el) el.classList.add('active');
+
+  const p=photos[editingIdx];
+  if(!p||p.type==='video') return;
+
+  if(fx==='none'){
+    _fxToken++;                       /* cancela qualquer efeito em andamento */
+    p.dataUrl=originalDataUrl;
+    document.getElementById('modalImg').src=p.dataUrl;
+    savePhotoToDB(p).catch(()=>{});
+    renderGallery();
+    return;
+  }
+
+  const meuToken=++_fxToken;
+
+  carregarOrigemEfeito(originalDataUrl).then(tmpImg=>{
+    /* Descarta se o usuário já escolheu outro efeito nesse meio-tempo. */
+    if(meuToken!==_fxToken) return;
+
+    /* CORREÇÃO: canvas próprio. O 'processCanvas' é compartilhado com
+       liveAdjust/applyFrame/applyCrop e podia ser sobrescrito no meio da
+       operação assíncrona, gerando resultado errado ou nenhum. */
+    const canvas=document.createElement('canvas');
+    canvas.width=tmpImg.naturalWidth; canvas.height=tmpImg.naturalHeight;
+    const ctx=canvas.getContext('2d');
+    const W=canvas.width, H=canvas.height;
+
+    if(fx==='whitebg'){
+      /* O código original pintava branco e desenhava a foto POR CIMA.
+         Como JPEG é opaco, o branco ficava coberto e não fazia nada.
+         Aqui o fundo claro é realmente convertido em branco puro. */
+      ctx.drawImage(tmpImg,0,0);
+      whitenBackground(ctx,W,H);
+    }
+    else if(fx==='bokeh'){
+      const cv2=document.createElement('canvas');
+      cv2.width=W; cv2.height=H;
+      const c2=cv2.getContext('2d');
+      c2.filter='blur(8px)';
+      c2.drawImage(tmpImg,0,0);
+      c2.filter='none';
+      ctx.drawImage(cv2,0,0);                       /* fundo desfocado */
+      const gr=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.45);
+      gr.addColorStop(0,'rgba(0,0,0,0)');
+      gr.addColorStop(1,'rgba(0,0,0,.55)');
+      ctx.save();
+      ctx.beginPath();                              /* centro nítido */
+      ctx.ellipse(W/2,H/2,W*.36,H*.36,0,0,Math.PI*2);
+      ctx.clip();
+      ctx.drawImage(tmpImg,0,0);
+      ctx.restore();
+      ctx.fillStyle=gr; ctx.fillRect(0,0,W,H);
+    }
+    else{
+      ctx.drawImage(tmpImg,0,0);
+      applyFilter(ctx,W,H,fx,1);
+    }
+
+    if(meuToken!==_fxToken) return;   /* checa de novo antes de gravar */
+
     p.dataUrl=canvas.toDataURL('image/jpeg',.93);
     document.getElementById('modalImg').src=p.dataUrl;
     savePhotoToDB(p).catch(()=>{});
-    renderGallery(); toast('🎨 Efeito aplicado!');
-  };
-  tmpImg.src=originalDataUrl;
+    renderGallery();
+    toast('🎨 Efeito aplicado!');
+  }).catch(err=>{
+    /* CORREÇÃO: antes uma falha era silenciosa — o usuário só via "não funciona". */
+    console.error('applyEffect:',err);
+    toast('⚠️ Não foi possível aplicar o efeito');
+  });
 }
+
 
 /* Converte o fundo claro em branco puro, mantendo o conteúdo escuro
    (texto, objeto) em primeiro plano. Usado pelo efeito "Fundo Branco". */
@@ -1141,11 +1214,14 @@ function applyFrame(frame,el) {
   currentFrame=frame;
   document.querySelectorAll('.frame-btn').forEach(c=>c.classList.remove('active')); el.classList.add('active');
   const p=photos[editingIdx]; if(!p||p.type==='video') return;
-  if(frame==='none'){p.dataUrl=originalDataUrl;document.getElementById('modalImg').src=p.dataUrl;return;}
-  const canvas=document.getElementById('processCanvas');
-  const tmpImg=new Image();
-  tmpImg.onload=()=>{
-    const iw=tmpImg.width,ih=tmpImg.height;
+  if(frame==='none'){_fxToken++;p.dataUrl=originalDataUrl;document.getElementById('modalImg').src=p.dataUrl;savePhotoToDB(p).catch(()=>{});renderGallery();return;}
+  const meuToken=++_fxToken;
+  carregarOrigemEfeito(originalDataUrl).then(tmpImg=>{
+    if(meuToken!==_fxToken) return;
+    /* CORREÇÃO: canvas próprio (antes usava o processCanvas compartilhado,
+       que podia ser sobrescrito por outra operação assíncrona). */
+    const canvas=document.createElement('canvas');
+    const iw=tmpImg.naturalWidth,ih=tmpImg.naturalHeight;
     const pad=frame==='polaroid'?Math.round(iw*.08):Math.round(iw*.04);
     const bpad=frame==='polaroid'?Math.round(iw*.22):pad;
     canvas.width=iw+pad*2; canvas.height=ih+pad+bpad;
@@ -1161,12 +1237,15 @@ function applyFrame(frame,el) {
     ctx.drawImage(tmpImg,pad,pad,iw,ih);
     if(frame==='rounded')ctx.restore();
     if(frame==='shadow'){ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=24;ctx.shadowOffsetY=8;ctx.drawImage(tmpImg,pad,pad,iw,ih);ctx.shadowColor='transparent';}
+    if(meuToken!==_fxToken) return;
     p.dataUrl=canvas.toDataURL('image/jpeg',.93);
     document.getElementById('modalImg').src=p.dataUrl;
     savePhotoToDB(p).catch(()=>{});
     renderGallery(); toast(t('frameApplied'));
-  };
-  tmpImg.src=originalDataUrl;
+  }).catch(err=>{
+    console.error('applyFrame:',err);
+    toast('⚠️ Não foi possível aplicar a moldura');
+  });
 }
 
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();}
