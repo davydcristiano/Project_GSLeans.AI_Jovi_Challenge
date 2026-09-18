@@ -29,6 +29,7 @@ let evStripVisible = false;
 
 /* AR */
 let arAnimId    = null;
+let arRunning   = false;
 let arParticles = [];
 let arMatrix    = [];
 let arRain      = [];
@@ -149,8 +150,12 @@ async function loadPhotosFromDB() {
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
-  document.getElementById('installBtn').style.display  = '';
-  document.getElementById('installBtn2').style.display = '';
+  /* CORREÇÃO: 'installBtn' não existe neste HTML (só 'installBtn2').
+     Sem a verificação, esta linha lançava erro e o botão nunca aparecia. */
+  ['installBtn','installBtn2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  });
 });
 
 function installPWA() {
@@ -243,8 +248,12 @@ async function initCamera() {
     document.getElementById('cameraScreen').classList.remove('screen-hidden');
     document.getElementById('statusDot').classList.add('active');
 
-    resizeARCanvas();
+    /* CORREÇÃO: o visor só ganha tamanho depois que a tela aparece,
+       então dimensiona a AR no frame seguinte (antes ficava 0x0). */
+    requestAnimationFrame(resizeARCanvas);
     window.addEventListener('resize', resizeARCanvas);
+    /* Reaplica o filtro ativo ao (re)abrir a câmera */
+    video.style.filter = CSS_FILTER_PREVIEW[currentFilter] || 'none';
     applyContinuousAF();
     showPinchHint();
     toast(t('cameraReady'));
@@ -472,11 +481,34 @@ function triggerCapture() {
 /* ══════════════════════════════════════
    10. FILTROS
 ══════════════════════════════════════ */
+/* Pré-visualização ao vivo dos filtros (CSS) — o processamento real
+   por pixel continua sendo feito em applyFilter() na captura. */
+const CSS_FILTER_PREVIEW = {
+  none:       'none',
+  vivid:      'saturate(1.7) contrast(1.12)',
+  dramatic:   'contrast(1.5) grayscale(.18) brightness(.92)',
+  noir:       'grayscale(1) contrast(1.3) brightness(.9)',
+  silvertone: 'grayscale(.85) brightness(1.06) contrast(1.05)',
+  fade:       'saturate(.65) brightness(1.15) contrast(.85)',
+  chrome:     'saturate(1.1) contrast(1.15) brightness(1.05)',
+  warm:       'sepia(.28) saturate(1.35) hue-rotate(-6deg)',
+  cool:       'saturate(1.15) hue-rotate(9deg) brightness(1.03)',
+  process:    'sepia(.25) saturate(1.5) hue-rotate(15deg)',
+  tonal:      'grayscale(1) contrast(1.1)',
+  transfer:   'sepia(.4) saturate(1.6) contrast(1.05)',
+  sepia:      'sepia(.85)'
+};
+
 function setFilter(fx, el) {
   currentFilter = fx;
   document.querySelectorAll('.fi').forEach(f => f.classList.remove('active'));
-  el.classList.add('active');
-  toast(t('filterApplied') + el.querySelector('span').textContent);
+  if (el) el.classList.add('active');
+
+  /* CORREÇÃO: aplica o filtro ao vídeo para que apareça na tela da câmera */
+  const video = document.getElementById('video');
+  if (video) video.style.filter = CSS_FILTER_PREVIEW[fx] || 'none';
+
+  toast(t('filterApplied') + (el ? el.querySelector('span').textContent : fx));
 }
 
 function applyFilter(ctx, w, h, fx, alpha) {
@@ -617,18 +649,26 @@ async function saveVideo() {
 function resizeARCanvas() {
   const vf = document.getElementById('viewfinder');
   const c  = document.getElementById('arCanvas');
-  c.width  = vf.offsetWidth;
-  c.height = vf.offsetHeight;
+  if (!vf || !c) return;
+  const w = vf.offsetWidth, h = vf.offsetHeight;
+  /* CORREÇÃO: se o visor ainda não tem tamanho, tenta de novo no próximo frame.
+     Antes o canvas ficava 0x0 e a AR desenhava no vazio (parecia "não funcionar"). */
+  if (!w || !h) { requestAnimationFrame(resizeARCanvas); return; }
+  if (c.width === w && c.height === h) return;
+  c.width = w; c.height = h;
+  /* Redimensionar o canvas limpa o conteúdo — reinicia a animação em andamento. */
+  if (arRunning) { stopAR(); startAR(currentAR); }
 }
 
 function setAR(type, el) {
   currentAR = type;
   document.querySelectorAll('.ar-opt').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-  stopAR(); startAR(type);
+  if (el) el.classList.add('active');
+  stopAR(); resizeARCanvas(); startAR(type);
 }
 
 function stopAR() {
+  arRunning = false;
   cancelAnimationFrame(arAnimId);
   const c = document.getElementById('arCanvas');
   if (c) c.getContext('2d').clearRect(0,0,c.width,c.height);
@@ -637,6 +677,14 @@ function stopAR() {
 
 function startAR(type) {
   const canvas = document.getElementById('arCanvas');
+  if (!canvas) return;
+  /* CORREÇÃO: garante que o canvas tenha dimensões antes de gerar as partículas */
+  if (!canvas.width || !canvas.height) {
+    const vf = document.getElementById('viewfinder');
+    if (vf && vf.offsetWidth) { canvas.width = vf.offsetWidth; canvas.height = vf.offsetHeight; }
+    else { requestAnimationFrame(() => startAR(type)); return; }
+  }
+  arRunning = true;
   const ctx = canvas.getContext('2d');
   const W=canvas.width, H=canvas.height;
 
@@ -729,7 +777,12 @@ function capture() {
     for(let i=0;i<id.data.length;i+=4){id.data[i]=cl(id.data[i]*1.4+18);id.data[i+1]=cl(id.data[i+1]*1.3+12);id.data[i+2]=cl(id.data[i+2]*1.2+8);}
     ctx.putImageData(id,0,0);
   }
-  if (currentMode==='ar') ctx.drawImage(document.getElementById('arCanvas'),0,0,vw,vh);
+  /* CORREÇÃO: grava a AR na foto sempre que a animação estiver rodando,
+     não apenas quando o modo selecionado for exatamente 'ar'. */
+  if (arRunning) {
+    const arc = document.getElementById('arCanvas');
+    if (arc && arc.width && arc.height) ctx.drawImage(arc, 0, 0, vw, vh);
+  }
   applyFilter(ctx,vw,vh,currentFilter,1);
 
   const dataUrl=canvas.toDataURL('image/jpeg',.93);
@@ -1021,8 +1074,15 @@ function applyEffect(fx,el) {
   tmpImg.onload=()=>{
     canvas.width=tmpImg.width; canvas.height=tmpImg.height;
     const ctx=canvas.getContext('2d');
-    if(fx==='whitebg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);}
-    ctx.drawImage(tmpImg,0,0);
+    if(fx==='whitebg'){
+      /* CORREÇÃO: antes o código pintava branco e desenhava a foto POR CIMA.
+         Como JPEG é opaco, o branco ficava totalmente coberto — não fazia nada.
+         Agora o fundo claro é realmente convertido em branco puro (estilo
+         digitalização de documento), preservando o objeto/texto em primeiro plano. */
+      ctx.drawImage(tmpImg,0,0);
+      whitenBackground(ctx,canvas.width,canvas.height);
+    }
+    else ctx.drawImage(tmpImg,0,0);
     if(fx==='bokeh'){ctx.filter='blur(8px)';const cv2=document.createElement('canvas');cv2.width=canvas.width;cv2.height=canvas.height;cv2.getContext('2d').drawImage(canvas,0,0);ctx.filter='none';ctx.drawImage(tmpImg,0,0);const gr=ctx.createRadialGradient(canvas.width/2,canvas.height/2,0,canvas.width/2,canvas.height/2,Math.max(canvas.width,canvas.height)*.4);gr.addColorStop(0,'transparent');gr.addColorStop(1,'rgba(0,0,0,.6)');ctx.drawImage(cv2,0,0);ctx.fillStyle=gr;ctx.fillRect(0,0,canvas.width,canvas.height);}
     else if(fx!=='whitebg') applyFilter(ctx,canvas.width,canvas.height,fx,1);
     p.dataUrl=canvas.toDataURL('image/jpeg',.93);
@@ -1031,6 +1091,50 @@ function applyEffect(fx,el) {
     renderGallery(); toast('🎨 Efeito aplicado!');
   };
   tmpImg.src=originalDataUrl;
+}
+
+/* Converte o fundo claro em branco puro, mantendo o conteúdo escuro
+   (texto, objeto) em primeiro plano. Usado pelo efeito "Fundo Branco". */
+function whitenBackground(ctx,w,h){
+  const id=ctx.getImageData(0,0,w,h);
+  const d=id.data;
+
+  /* 1) Estima o nível do fundo pelas bordas da imagem, que quase sempre
+        são fundo — assim funciona tanto em foto clara quanto escura. */
+  let soma=0,n=0;
+  const passo=Math.max(1,Math.floor(w/100));
+  for(let x=0;x<w;x+=passo){
+    for(const y of [0,h-1]){
+      const i=(y*w+x)*4;
+      soma+=lum(d[i],d[i+1],d[i+2]); n++;
+    }
+  }
+  for(let y=0;y<h;y+=passo){
+    for(const x of [0,w-1]){
+      const i=(y*w+x)*4;
+      soma+=lum(d[i],d[i+1],d[i+2]); n++;
+    }
+  }
+  const fundo=n?soma/n:200;
+
+  /* 2) Tudo que for tão claro quanto o fundo vira branco puro;
+        a faixa de transição é suavizada para não serrilhar as bordas.
+        Calibrado para que o nível do fundo caia acima de (limite+suave). */
+  const limite=Math.max(90,fundo-70);
+  const suave=40;
+
+  for(let i=0;i<d.length;i+=4){
+    const lv=lum(d[i],d[i+1],d[i+2]);
+    if(lv>=limite+suave){
+      d[i]=d[i+1]=d[i+2]=255;
+    } else if(lv>limite){
+      const k=(lv-limite)/suave;
+      d[i]=cl(d[i]+(255-d[i])*k);
+      d[i+1]=cl(d[i+1]+(255-d[i+1])*k);
+      d[i+2]=cl(d[i+2]+(255-d[i+2])*k);
+    }
+  }
+  ctx.putImageData(id,0,0);
 }
 
 function applyFrame(frame,el) {
@@ -1110,19 +1214,36 @@ function resetCrop(){resetCropUI();}
 function applyCrop(){
   const p=photos[editingIdx];if(!p||p.type==='video')return;
   const preview=document.getElementById('modalPreview'),img=document.getElementById('modalImg');
-  const rect=preview.getBoundingClientRect();
-  const scale=Math.min(rect.width/img.naturalWidth,rect.height/img.naturalHeight);
-  const offX=(rect.width-img.naturalWidth*scale)/2,offY=(rect.height-img.naturalHeight*scale)/2;
-  const sx=(Math.min(cropState.sx,cropState.ex)-offX)/scale;
-  const sy=(Math.min(cropState.sy,cropState.ey)-offY)/scale;
-  const sw=Math.abs(cropState.ex-cropState.sx)/scale;
-  const sh=Math.abs(cropState.ey-cropState.sy)/scale;
+  if(!img.naturalWidth){toast('Imagem ainda carregando');return;}
+
+  /* CORREÇÃO: mede a IMAGEM renderizada, não o contêiner. Como o <img> usa
+     object-fit:contain, o conteúdo fica "encaixotado" dentro do elemento —
+     usar o retângulo do contêiner recortava a região errada. */
+  const prevRect=preview.getBoundingClientRect();
+  const imgRect=img.getBoundingClientRect();
+  const scale=Math.min(imgRect.width/img.naturalWidth, imgRect.height/img.naturalHeight);
+  const drawW=img.naturalWidth*scale, drawH=img.naturalHeight*scale;
+  /* deslocamento do conteúdo visível em relação ao contêiner onde o mouse é medido */
+  const offX=(imgRect.left-prevRect.left)+(imgRect.width-drawW)/2;
+  const offY=(imgRect.top-prevRect.top)+(imgRect.height-drawH)/2;
+
+  let sx=(Math.min(cropState.sx,cropState.ex)-offX)/scale;
+  let sy=(Math.min(cropState.sy,cropState.ey)-offY)/scale;
+  let sw=Math.abs(cropState.ex-cropState.sx)/scale;
+  let sh=Math.abs(cropState.ey-cropState.sy)/scale;
+
+  /* CORREÇÃO: limita a seleção à imagem (antes gerava bordas pretas ou erro) */
+  sx=Math.max(0,Math.min(sx,img.naturalWidth-1));
+  sy=Math.max(0,Math.min(sy,img.naturalHeight-1));
+  sw=Math.max(1,Math.min(sw,img.naturalWidth-sx));
+  sh=Math.max(1,Math.min(sh,img.naturalHeight-sy));
+
   if(sw<10||sh<10){toast('Área muito pequena');return;}
   const canvas=document.getElementById('processCanvas');
-  canvas.width=sw;canvas.height=sh;
+  canvas.width=Math.round(sw);canvas.height=Math.round(sh);
   const ctx=canvas.getContext('2d');
   const tmpImg=new Image();
-  tmpImg.onload=()=>{ctx.drawImage(tmpImg,sx,sy,sw,sh,0,0,sw,sh);p.dataUrl=canvas.toDataURL('image/jpeg',.93);p.w=Math.round(sw);p.h=Math.round(sh);originalDataUrl=p.dataUrl;document.getElementById('modalImg').src=p.dataUrl;document.getElementById('modalMeta').textContent=p.w+'×'+p.h;resetCropUI();savePhotoToDB(p).catch(()=>{});renderGallery();toast(t('cropApplied'));};
+  tmpImg.onload=()=>{ctx.drawImage(tmpImg,sx,sy,sw,sh,0,0,sw,sh);p.dataUrl=canvas.toDataURL('image/jpeg',.93);p.w=Math.round(sw);p.h=Math.round(sh);p.whitebg=false;originalDataUrl=p.dataUrl;document.getElementById('modalImg').src=p.dataUrl;document.getElementById('modalMeta').textContent=p.w+'×'+p.h;resetCropUI();savePhotoToDB(p).catch(()=>{});renderGallery();toast(t('cropApplied'));};
   tmpImg.src=p.dataUrl;
 }
 
