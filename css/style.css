@@ -48,7 +48,24 @@ html,body{
 
 /* Telas */
 .app-screen{ min-height:100dvh; }
-#cameraScreen{ display:flex; flex-direction:column; }
+
+/* CORREÇÃO DE RESPONSIVIDADE: a tela da câmera precisa caber inteira
+   na viewport SEMPRE — sem exigir rolagem para ver os filtros. Antes
+   .viewfinder tinha aspect-ratio:3/4 fixo baseado na LARGURA, o que em
+   celulares gerava uma altura maior que o espaço realmente disponível
+   (ex.: numa tela de 667px de altura, o visor sozinho pedia ~500px,
+   sobrando só ~167px para topo+zoom+filtros+modos+obturador+extras,
+   que juntos passam de 300px — o excedente empurrava tudo para baixo
+   e obrigava a rolar). Agora #cameraScreen tem altura TRAVADA em
+   100dvh com overflow:hidden (nunca rola a página), e .viewfinder usa
+   flex:1 (ver mais abaixo) para ocupar exatamente o espaço que sobra
+   depois das barras de controle — nunca mais, nunca menos. */
+#cameraScreen{
+  height:100dvh; max-height:100dvh; overflow:hidden;
+  display:flex; flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
 
 /* Scrollbar temática */
 html{ scrollbar-color:var(--line) var(--bg); scrollbar-width:thin; }
@@ -145,7 +162,10 @@ html{ scrollbar-color:var(--line) var(--bg); scrollbar-width:thin; }
 /* ═══════════════════════
    CÂMERA — barra superior
 ═══════════════════════ */
-.top-bar{ flex-shrink:0; background:var(--bg); border-bottom:1px solid var(--line); }
+.top-bar{
+  flex-shrink:0; background:var(--bg); border-bottom:1px solid var(--line);
+  padding-top:calc(.5rem + env(safe-area-inset-top,0px)) !important;
+}
 .topbtn{
   background:var(--glass); border:1px solid var(--line); color:var(--text);
   border-radius:999px; min-width:38px; height:38px;
@@ -168,11 +188,13 @@ html{ scrollbar-color:var(--line) var(--bg); scrollbar-width:thin; }
 ═══════════════════════ */
 .viewfinder{
   position:relative; width:100%; max-width:560px; margin:0 auto;
-  aspect-ratio:3/4; background:#000; overflow:hidden; flex-shrink:0;
-}
-@supports not (aspect-ratio:1){ .viewfinder{ height:0; padding-bottom:133.33%; } }
-@media (max-height:760px) and (orientation:landscape){
-  .viewfinder{ aspect-ratio:auto; height:52vh; }
+  background:#000; overflow:hidden;
+  /* CORREÇÃO: flex:1 (em vez de aspect-ratio fixo) — o visor ocupa
+     exatamente o espaço vertical que sobra depois de topo, zoom,
+     filtros, modos, obturador e extras. Isso é o que garante caber
+     em qualquer altura de tela sem rolagem. min-height:0 é necessário
+     para o flex-basis não respeitar o tamanho intrínseco do vídeo. */
+  flex:1 1 auto; min-height:110px;
 }
 #video{
   position:absolute; inset:0; width:100%; height:100%;
@@ -235,7 +257,11 @@ html{ scrollbar-color:var(--line) var(--bg); scrollbar-width:thin; }
 /* ═══════════════════════
    CONTROLES DA CÂMERA
 ═══════════════════════ */
-.cam-controls{ flex:1; display:flex; flex-direction:column; max-width:560px; width:100%; margin:0 auto; }
+/* CORREÇÃO: antes tinha flex:1 (crescia para preencher espaço, competindo
+   com o visor). Agora ocupa só a altura natural do seu conteúdo — o visor
+   (flex:1 acima) é quem absorve o espaço restante. flex-shrink:0 garante
+   que os controles nunca sejam espremidos/cortados. */
+.cam-controls{ flex-shrink:0; display:flex; flex-direction:column; max-width:560px; width:100%; margin:0 auto; }
 
 .ev-strip,.zoom-strip{ flex-shrink:0; }
 .zl{ font-size:.7rem; color:var(--muted); font-family:var(--font-mono); flex-shrink:0; }
@@ -285,7 +311,7 @@ html{ scrollbar-color:var(--line) var(--bg); scrollbar-width:thin; }
 .mode-btn.active{ color:var(--gold); background:rgba(245,166,35,.12); }
 
 /* Inferiores */
-.cam-bottom{ flex-shrink:0; margin-top:auto; }
+.cam-bottom{ flex-shrink:0; }
 .thumb-btn{
   width:46px; height:46px; border-radius:12px; padding:0;
   border:1px solid var(--line); background:var(--panel);
@@ -324,7 +350,10 @@ html{ scrollbar-color:var(--line) var(--bg); scrollbar-width:thin; }
   display:flex; align-items:center; justify-content:center;
 }
 
-.extra-controls{ gap:6px; flex-shrink:0; }
+.extra-controls{
+  gap:6px; flex-shrink:0;
+  padding-bottom:calc(.75rem + env(safe-area-inset-bottom,0px)) !important;
+}
 .extra-btn{
   background:var(--panel); border:1px solid var(--line); color:var(--muted);
   font-size:.7rem; padding:.3rem .7rem; border-radius:999px;
@@ -580,6 +609,29 @@ select.form-control option{ background:var(--panel); color:var(--text); }
   .modal-overlay{ align-items:center; }
   .modal-sheet{ border-radius:20px; max-height:88vh; }
 }
+/* CORREÇÃO — margem extra de segurança em telas baixas (celulares antigos,
+   paisagem, janelas divididas): compacta os controles para que o visor
+   raramente precise recorrer ao seu piso mínimo de 110px. O grid flexível
+   já garante "nunca rolar" por si só; isto é só polimento extra para que
+   a câmera continue com boa proporção mesmo em ~560–640px de altura. */
+@media (max-height:640px){
+  .top-bar{ padding-top:calc(.3rem + env(safe-area-inset-top,0px)) !important; padding-bottom:.3rem !important; }
+  .topbtn{ min-width:32px; height:32px; }
+  .zoom-strip,.ev-strip{ padding-top:.25rem !important; padding-bottom:.25rem !important; }
+  .filters-strip{ padding-top:0; }
+  .fi{ width:52px; }
+  .fi .ft{ width:42px; height:42px; }
+  .mode-row{ padding-top:2px; padding-bottom:2px; }
+  .mode-btn{ padding:.2rem .5rem; font-size:.68rem; }
+  .cam-bottom{ padding-top:.35rem !important; padding-bottom:.35rem !important; }
+  .shutter{ width:58px; height:58px; }
+  .shutter-inner{ width:42px; height:42px; }
+  .thumb-btn,.flip-btn{ width:38px; height:38px; }
+  .timer-sel{ font-size:.55rem; padding:.1rem .3rem; }
+  .extra-controls{ padding-bottom:calc(.4rem + env(safe-area-inset-bottom,0px)) !important; }
+  .extra-btn{ font-size:.64rem; padding:.22rem .55rem; }
+}
+
 @media (prefers-reduced-motion:reduce){
   .icon-ring,.ar-pulse,.rec-dot{ animation:none; }
   #flashOverlay.flash,#focusRing.show{ animation:none; }

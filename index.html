@@ -3,22 +3,28 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
   <meta name="description" content="GSLens.AI — Câmera web com Filtros Inteligentes, Realidade Aumentada, Recorte Avançado, Fundo Branco e Geração de PDF.">
   <title>GSLens.AI</title>
 
-  <!-- Fontes -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Tipografia: usa a pilha de fontes do sistema (sem CDN de fontes).
+       As variáveis --font-display/--font-mono em style.css já têm fallback
+       'Syne'/'Space Mono' → system-ui/monospace, então a interface continua
+       com boa aparência mesmo sem baixar fontes externas. -->
 
-  <!-- Bootstrap 4 -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+  <!-- Bootstrap 4.6 — LOCAL, sem CDN (ver css/vendor/bootstrap4.local.css) -->
+  <link rel="stylesheet" href="css/vendor/bootstrap4.local.css">
 
-  <!-- jsPDF -->
+  <!-- jsPDF e Chart.js: bibliotecas FUNCIONAIS (não fazem parte do Bootstrap)
+       usadas respectivamente pela função "Gerar PDF" e pela tela de
+       Estatísticas. Este ambiente de build não tem acesso à internet para
+       baixar e vendorizar os arquivos reais dessas duas bibliotecas — por
+       isso, e só para estas duas, o CDN foi mantido para não quebrar as
+       funcionalidades que dependem delas. Se quiser 100% offline, baixe
+       jspdf.umd.min.js e chart.umd.min.js dos respectivos projetos e troque
+       os src abaixo para os caminhos locais (ex.: js/vendor/jspdf.umd.min.js). -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- Chart.js (dashboard) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
   <!-- Tema próprio -->
@@ -552,10 +558,11 @@
   <!-- Canvas de processamento -->
   <canvas id="processCanvas" style="display:none"></canvas>
 
-  <!-- Bootstrap 4 JS -->
-  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
+  <!-- jQuery / Popper / bootstrap.js foram removidos: auditoria confirmou
+       que nada neste projeto usa $()/jQuery nem componentes JS do Bootstrap
+       (data-toggle, data-dismiss, .modal() etc.) — os modais e abas daqui
+       são controlados por script.js puro, via classList. Eram ~90KB
+       carregados à toa em cada visita. -->
 
   <script src="js/script.js"></script>
 </body>

@@ -1007,6 +1007,11 @@ function openTab(tab,el) {
 /* ══════════════════════════════════════
    18. AJUSTES
 ══════════════════════════════════════ */
+/* Token dedicado aos ajustes — os sliders disparam 'input' dezenas de vezes
+   por segundo, então esta função precisa do mesmo tratamento anti-corrida
+   que applyEffect(), só que separado, pois os dois podem se alternar. */
+let _adjToken = 0;
+
 function liveAdjust() {
   const B=+document.getElementById('slBrightness').value;
   const C=+document.getElementById('slContrast').value;
@@ -1018,10 +1023,16 @@ function liveAdjust() {
     if(el) document.getElementById('v'+k).textContent=el.value;
   });
   const p=photos[editingIdx]; if(!p||p.type==='video') return;
-  const canvas=document.getElementById('processCanvas');
-  const tmpImg=new Image();
-  tmpImg.onload=()=>{
-    canvas.width=tmpImg.width; canvas.height=tmpImg.height;
+
+  const meuToken=++_adjToken;
+  /* CORREÇÃO: usa o cache de decodificação (carregarOrigemEfeito) em vez de
+     um new Image() por chamada — arrastar o slider rápido antes disparava
+     dezenas de onload concorrentes no MESMO processCanvas compartilhado,
+     e o resultado final dependia de qual terminava por último (aleatório). */
+  carregarOrigemEfeito(originalDataUrl).then(tmpImg=>{
+    if(meuToken!==_adjToken) return;          /* descarta se o slider já se moveu de novo */
+    const canvas=document.createElement('canvas');   /* canvas próprio, não o compartilhado */
+    canvas.width=tmpImg.naturalWidth; canvas.height=tmpImg.naturalHeight;
     const ctx=canvas.getContext('2d');
     ctx.filter=BL>0?`blur(${BL}px)`:'none';
     ctx.drawImage(tmpImg,0,0);
@@ -1038,9 +1049,9 @@ function liveAdjust() {
     }
     ctx.putImageData(id,0,0);
     if(V>0) applyVignette(ctx,canvas.width,canvas.height,V/100);
+    if(meuToken!==_adjToken) return;
     document.getElementById('modalImg').src=canvas.toDataURL('image/jpeg',.93);
-  };
-  tmpImg.src=originalDataUrl;
+  }).catch(err=>console.error('liveAdjust:',err));
 }
 
 function applyVignette(ctx,w,h,strength){
@@ -1318,12 +1329,24 @@ function applyCrop(){
   sh=Math.max(1,Math.min(sh,img.naturalHeight-sy));
 
   if(sw<10||sh<10){toast('Área muito pequena');return;}
-  const canvas=document.getElementById('processCanvas');
+  /* CORREÇÃO: a <img> já está carregada na tela (checamos img.naturalWidth
+     acima) — desenhar direto dela é síncrono e elimina o risco de um
+     new Image()/onload que dependia de recarregar/redecodificar a mesma
+     imagem, algo que podia não disparar vindo do cache do navegador. */
+  const canvas=document.createElement('canvas');
   canvas.width=Math.round(sw);canvas.height=Math.round(sh);
   const ctx=canvas.getContext('2d');
-  const tmpImg=new Image();
-  tmpImg.onload=()=>{ctx.drawImage(tmpImg,sx,sy,sw,sh,0,0,sw,sh);p.dataUrl=canvas.toDataURL('image/jpeg',.93);p.w=Math.round(sw);p.h=Math.round(sh);p.whitebg=false;originalDataUrl=p.dataUrl;document.getElementById('modalImg').src=p.dataUrl;document.getElementById('modalMeta').textContent=p.w+'×'+p.h;resetCropUI();savePhotoToDB(p).catch(()=>{});renderGallery();toast(t('cropApplied'));};
-  tmpImg.src=p.dataUrl;
+  ctx.drawImage(img,sx,sy,sw,sh,0,0,sw,sh);
+  p.dataUrl=canvas.toDataURL('image/jpeg',.93);
+  p.w=Math.round(sw);p.h=Math.round(sh);p.whitebg=false;
+  originalDataUrl=p.dataUrl;
+  _fxCache={url:null,img:null};        /* invalida o cache: a origem mudou */
+  document.getElementById('modalImg').src=p.dataUrl;
+  document.getElementById('modalMeta').textContent=p.w+'×'+p.h;
+  resetCropUI();
+  savePhotoToDB(p).catch(()=>{});
+  renderGallery();
+  toast(t('cropApplied'));
 }
 
 
@@ -1375,19 +1398,21 @@ function clearDrawCanvas(){const dc=document.getElementById('drawCanvas');if(dc)
 function applyDraw(){
   const p=photos[editingIdx];if(!p||p.type==='video')return;
   const dc=document.getElementById('drawCanvas');
-  const tmpImg=new Image();
-  tmpImg.onload=()=>{
-    const canvas=document.getElementById('processCanvas');
-    canvas.width=tmpImg.width;canvas.height=tmpImg.height;
-    const ctx=canvas.getContext('2d');
-    ctx.drawImage(tmpImg,0,0);
-    ctx.drawImage(dc,0,0,dc.width,dc.height,0,0,canvas.width,canvas.height);
-    p.dataUrl=canvas.toDataURL('image/jpeg',.93);
-    originalDataUrl=p.dataUrl;
-    document.getElementById('modalImg').src=p.dataUrl;
-    clearDrawCanvas(); savePhotoToDB(p).catch(()=>{}); renderGallery(); toast(t('drawApplied'));
-  };
-  tmpImg.src=originalDataUrl;
+  const img=document.getElementById('modalImg');
+  if(!img.naturalWidth){toast('Imagem ainda carregando');return;}
+  /* CORREÇÃO: desenha direto da <img> já visível em tela — o desenho está
+     sendo mostrado sobre ela, então ela necessariamente já está carregada.
+     Canvas próprio em vez do processCanvas compartilhado. */
+  const canvas=document.createElement('canvas');
+  canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  ctx.drawImage(dc,0,0,dc.width,dc.height,0,0,canvas.width,canvas.height);
+  p.dataUrl=canvas.toDataURL('image/jpeg',.93);
+  originalDataUrl=p.dataUrl;
+  _fxCache={url:null,img:null};
+  document.getElementById('modalImg').src=p.dataUrl;
+  clearDrawCanvas(); savePhotoToDB(p).catch(()=>{}); renderGallery(); toast(t('drawApplied'));
 }
 
 /* Texto */
